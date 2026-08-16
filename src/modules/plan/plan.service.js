@@ -24,3 +24,22 @@ export const createPlanService = async (plan_name,plan_price,is_active) => {
     } 
 
 }
+
+
+export const checkPlainExist = async (plan_id) => {
+    try {
+        const planExists = await plan.findOne({
+            where: {
+                id: plan_id,
+            }
+        })
+        if (!plan){
+            return false;
+
+        }
+        return true;
+    } catch (err) {
+        console.log("Error checking plan existence:", err);
+        return false;
+    }
+}
