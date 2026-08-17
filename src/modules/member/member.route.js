@@ -1,12 +1,7 @@
 import express from "express";
 
 import {
-    createMemberController,
-    getAllMembersController,
-    getMemberByIdController,
-    updateMemberController,
-    blockMemberController
-} from "./member.controller.js";
+    createMemberController, getAllMembersController, getMemberByIdController, updateMemberController, blockMemberController, unblockMemberController           } from "./member.controller.js";
 
 
 const router = express.Router();
@@ -21,6 +16,8 @@ router.get("/:id", getMemberByIdController);
 router.put("/:id", updateMemberController);
 
 router.patch("/:id/block", blockMemberController);
+
+router.patch("/:id/unblock", unblockMemberController);
 
 
 export default router;
