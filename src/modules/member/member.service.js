@@ -223,3 +223,33 @@ export const blockMemberService = async (id) => {
         throw err;
     }
 };
+
+export const unblockMemberService = async (id) => {
+    try {
+
+        const memberData = await member.findByPk(id);
+
+        if (!memberData) {
+            throw new Error("Member not found");
+        }
+
+        const userData = await User.findByPk(memberData.user_id);
+
+        if (!userData) {
+            throw new Error("User not found");
+        }
+
+        await userData.update({
+            isBlocked: false,
+            isActive: true
+        });
+
+        return userData;
+
+    } catch (err) {
+
+        console.log("Error unblocking member:", err);
+
+        throw err;
+    }
+};
