@@ -159,3 +159,26 @@ export const blockMemberController = async (req, res) => {
         });
     }
 };
+
+export const unblockMemberController = async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+        const unblockedMember = await unblockMemberService(id);
+
+        return res.status(200).json({
+            message: "Member unblocked successfully",
+            member: unblockedMember
+        });
+
+    } catch (err) {
+
+        console.error("Error unblocking member:", err);
+
+        return res.status(400).json({
+            message: err.message
+        });
+    }
+};
