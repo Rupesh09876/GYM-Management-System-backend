@@ -43,4 +43,13 @@ export const member = sequelize.define("member", {
     gender: {
         type: DataTypes.ENUM("male", "female", "other"),
     },
+
+    trainer_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: "Trainers",
+            key: "trainerId",
+        },
+    },
 });
