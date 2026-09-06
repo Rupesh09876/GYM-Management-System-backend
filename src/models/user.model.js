@@ -65,6 +65,41 @@ export const User = sequelize.define("User", {
       type: DataTypes.ENUM("user", "admin"),
       defaultValue: "user",
     },
+
+  dob: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+
+  occupation: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  city: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  province: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  emergency_contact_name: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  emergency_contact_relation: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  emergency_contact_phone: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   timestamps: true,
 }
