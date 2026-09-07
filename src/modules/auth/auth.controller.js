@@ -1,4 +1,4 @@
-import { registerUserService, sendOtpService, verifyOtpService, loginUserService, } from "./auth.service.js";
+import { registerUserService, sendOtpService, verifyOtpService, loginUserService, changePasswordService } from "./auth.service.js";
 
 //  Send OTP 
 export const sendOtpController = async (req, res) => {
@@ -122,6 +122,21 @@ export const loginRegisterController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+export const changePasswordController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await changePasswordService(userId, req.body);
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error changing password:", error);
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to change password."
     });
   }
 };
