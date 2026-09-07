@@ -1,5 +1,6 @@
 import { sendMail } from "../../config/emailsetUp.js";
 import { User } from "../../models/user.model.js";
+import { member } from "../../models/member.models.js";
 import { generateOTP } from "./auth.helper.js";
 import { client } from "../../config/redis.js";
 import bcrypt from "bcryptjs";
@@ -122,17 +123,16 @@ export const registerUserService = async ({
 
 //  Login User 
 export const loginUserService = async (email, password) => {
-
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
     const u = await User.findOne({
         where: {
-            email
+            email: normalizedEmail
         }
     });
 
     if (!u) {
         throw new Error("User does not exist. Please register first.");
     }
-
 
     const isPasswordValid = await bcrypt.compare(
         password,
@@ -143,11 +143,32 @@ export const loginUserService = async (email, password) => {
         throw new Error("Invalid password.");
     }
 
+    if (u.isBlocked || !u.isActive) {
+        throw new Error("Account is blocked or inactive. Please contact admin.");
+    }
+
+    let memberId = null;
+    if (u.role === "user" || u.role === "member") {
+        const memberRecord = await member.findOne({
+            where: { user_id: u.id }
+        });
+        if (memberRecord) {
+            memberId = memberRecord.id;
+        }
+    }
+
+    const jwtPayload = {
+        id: u.id,
+        email: u.email,
+        role: u.role || "user"
+    };
+
+    if (memberId) {
+        jwtPayload.member_id = memberId;
+    }
+
     const token = jwt.sign(
-        {
-            id: u.id,
-            email: u.email
-        },
+        jwtPayload,
         process.env.JWT_SECRET || "somethingsecret",
         {
             expiresIn: "1h"
@@ -156,9 +177,60 @@ export const loginUserService = async (email, password) => {
 
     const userData = u.toJSON();
     delete userData.password;
+    if (memberId) {
+        userData.member_id = memberId;
+    }
 
     return {
+        id: u.id,
+        email: u.email,
+        role: u.role || "user",
+        ...(memberId ? { member_id: memberId } : {}),
         user: userData,
         token
+    };
+};
+
+export const changePasswordService = async (userId, { currentPassword, newPassword, confirmPassword }) => {
+    if (!newPassword || newPassword.length < 6) {
+        const err = new Error("New password must be at least 6 characters long.");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+        const err = new Error("New passwords do not match.");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const u = await User.findByPk(userId);
+    if (!u) {
+        const err = new Error("User not found.");
+        err.statusCode = 404;
+        throw err;
+    }
+
+    // Verify current password if user has one set
+    if (u.password && currentPassword) {
+        const isValid = await bcrypt.compare(currentPassword, u.password);
+        if (!isValid) {
+            const err = new Error("Incorrect current password.");
+            err.statusCode = 400;
+            throw err;
+        }
+    } else if (u.password && !currentPassword) {
+        const err = new Error("Current password is required.");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    u.password = hashedPassword;
+    await u.save();
+
+    return {
+        success: true,
+        message: "Password changed successfully."
     };
 };
