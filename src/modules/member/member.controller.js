@@ -1,4 +1,4 @@
-import {createMemberService, getAllMembersService, getMemberByIdService, updateMemberService, blockMemberService} from "./member.service.js";
+import {createMemberService, getAllMembersService, getMemberByIdService, updateMemberService, blockMemberService, unblockMemberService} from "./member.service.js";
 
 
 export const createMemberController = async (req, res) => {
@@ -174,7 +174,6 @@ export const unblockMemberController = async (req, res) => {
         });
 
     } catch (err) {
-
         console.error("Error unblocking member:", err);
 
         return res.status(400).json({
