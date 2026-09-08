@@ -2,7 +2,9 @@ import { sequelize } from "../../config/db.js";
 import { member } from "../../models/member.models.js";
 import { User } from "../../models/user.model.js";
 import { plan } from "../../models/plan.models.js";
+import { Notification } from "../../models/notification.model.js";
 import bcrypt from "bcryptjs";
+import { Op } from "sequelize";
 
 
 export const createMemberService = async (
@@ -21,16 +23,23 @@ export const createMemberService = async (
 
     try {
 
-        // Check if user already exists
+        // Check if user already exists by email, username, or phone
         const userExists = await User.findOne({
             where: {
-                email: email
+                [Op.or]: [
+                    { email: email },
+                    ...(username ? [{ username: username }] : []),
+                    ...(phone ? [{ phone: phone }] : [])
+                ]
             },
             transaction
         });
 
         if (userExists) {
-            throw new Error("User with this email already exists");
+            if (userExists.email === email) throw new Error("User with this email already exists");
+            if (userExists.username === username) throw new Error("User with this username already exists");
+            if (userExists.phone === phone) throw new Error("User with this phone number already exists");
+            throw new Error("User with provided credentials already exists");
         }
 
 
@@ -55,11 +64,12 @@ export const createMemberService = async (
         // 1. Create User
         const newUser = await User.create({
             username,
-            email,
+            email: email.toLowerCase().trim(),
             password: hashedPassword,
             phone,
             address,
             age,
+            role: 'user',
             isActive: true,
             isBlocked: false
         }, {
@@ -75,6 +85,18 @@ export const createMemberService = async (
             address,
             age,
             gender
+        }, {
+            transaction
+        });
+
+
+        // 3. Create Welcome Notification
+        await Notification.create({
+            user_id: newUser.id,
+            title: 'Account Activated',
+            message: `Welcome ${username}! Your Phoenix Gym membership registration was completed successfully.`,
+            type: 'success',
+            is_read: false
         }, {
             transaction
         });
@@ -99,38 +121,37 @@ export const createMemberService = async (
 
 
 export const getAllMembersService = async () => {
-
     try {
-
-        const members = await member.findAll();
-
+        const members = await member.findAll({
+            include: [
+                { model: User, attributes: { exclude: ['password'] } },
+                { model: plan }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
         return members;
-
     } catch (err) {
-
         console.log("Error getting members:", err);
-
         throw err;
     }
 };
 
-
 export const getMemberByIdService = async (id) => {
-
     try {
-
-        const memberData = await member.findByPk(id);
+        const memberData = await member.findByPk(id, {
+            include: [
+                { model: User, attributes: { exclude: ['password'] } },
+                { model: plan }
+            ]
+        });
 
         if (!memberData) {
             throw new Error("Member not found");
         }
 
         return memberData;
-
     } catch (err) {
-
         console.log("Error getting member:", err);
-
         throw err;
     }
 };
