@@ -67,6 +67,7 @@ export const getPaymentsDataService = async (authUser) => {
                 plan: memberData.plan ? memberData.plan.plan_name : 'Unknown',
                 nextDueDate: nextPayment.due_date || 'N/A',
                 monthlyFee: `Rs. ${memberData.amount_paid}`,
+                monthlyFeeRaw: Number(memberData.amount_paid) || (memberData.plan ? Number(memberData.plan.plan_price) : 1500),
                 paymentMethod: nextPayment.method || 'Cash',
                 billingCycle: 'Monthly',
                 accountStatus: 'Good Standing',
@@ -190,6 +191,7 @@ export const createPaymentService = async (body) => {
 };
 
 const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || "aa26cd9d59614bcfae548124b7f58146";
+const KHALTI_PUBLIC_KEY = process.env.KHALTI_PUBLIC_KEY || "8717a58ad6c44498a91679bee326c2af";
 
 export const initiateKhaltiPaymentService = async (authUser, payload) => {
     try {
@@ -333,4 +335,58 @@ export const verifyKhaltiPaymentService = async (authUser, payload) => {
     }
 };
 
+export const getLatestInvoiceService = async (authUser, paymentId = null) => {
+    try {
+        let memberData;
+        if (authUser.member_id) {
+            memberData = await member.findByPk(authUser.member_id, { include: [{ model: plan }] });
+        } else {
+            memberData = await member.findOne({ where: { user_id: authUser.id }, include: [{ model: plan }] });
+        }
+        if (!memberData) {
+            const err = new Error("No member record found");
+            err.statusCode = 404;
+            throw err;
+        }
 
+        const userData = await User.findByPk(authUser.id);
+
+        let targetPayment;
+        if (paymentId) {
+            targetPayment = await Payment.findOne({
+                where: { id: paymentId, member_id: memberData.id },
+                include: [{ model: plan }]
+            });
+        } else {
+            targetPayment = await Payment.findOne({
+                where: { member_id: memberData.id, status: 'PAID' },
+                include: [{ model: plan }],
+                order: [['payment_date', 'DESC']]
+            });
+        }
+
+        if (!targetPayment) {
+            const err = new Error("No paid invoice found");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+
+        return {
+            invoice_id: targetPayment.invoice_id || `INV-${targetPayment.id.slice(0, 8)}`,
+            payment_date: formatDate(targetPayment.payment_date),
+            due_date: formatDate(targetPayment.due_date),
+            member_name: userData?.username || 'Member',
+            member_display_id: `PG-${memberData.id.slice(0, 6).toUpperCase()}`,
+            email: userData?.email || 'N/A',
+            phone: userData?.phone || '',
+            method: targetPayment.method || 'Cash',
+            plan_name: targetPayment.plan ? targetPayment.plan.plan_name : (memberData.plan ? memberData.plan.plan_name : 'Unknown'),
+            amount: targetPayment.amount
+        };
+    } catch (err) {
+        console.error("Error in getLatestInvoiceService:", err);
+        throw err;
+    }
+};
